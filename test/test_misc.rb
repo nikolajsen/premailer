@@ -114,6 +114,36 @@ END_HTML
     end
   end
 
+  def test_preserving_link_tags
+    html = <<END_HTML
+    <html>
+    <head>
+    <link rel="stylesheet" href="#"/>
+    <style type="text/css"> a:hover { color: red; } </style>
+    </head>
+    <body>
+    <p><a>Test</a></p>
+    </body>
+    </html>
+END_HTML
+    [:nokogiri, :hpricot].each do |adapter|
+      premailer = Premailer.new(html, :with_html_string => true, :preserve_link_tags => true, :preserve_style_tags => false, :adapter => adapter)
+      premailer.to_inline_css
+      assert_equal 1, premailer.processed_doc.search('head link').length
+      assert_nil premailer.processed_doc.at('head style')
+
+      premailer = Premailer.new(html, :with_html_string => true, :preserve_link_tags => false, :preserve_style_tags => true, :adapter => adapter)
+      premailer.to_inline_css
+      assert_equal 1, premailer.processed_doc.search('head style').length
+      assert_nil premailer.processed_doc.at('head link')
+
+      premailer = Premailer.new(html, :with_html_string => true, :preserve_link_tags => true, :preserve_style_tags => true, :adapter => adapter)
+      premailer.to_inline_css
+      assert_equal 1, premailer.processed_doc.search('head style').length
+      assert_equal 1, premailer.processed_doc.search('head link').length
+    end
+  end
+
   def test_unmergable_rules
     html = <<END_HTML
     <html> <head> <style type="text/css"> a { color:blue; } a:hover { color: red; } </style> </head>

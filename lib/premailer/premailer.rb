@@ -165,8 +165,10 @@ class Premailer
   # @option options [Boolean] :remove_scripts Remove <tt>script</tt> elements. Default is true.
   # @option options [Boolean] :reset_contenteditable Remove <tt>contenteditable</tt> attributes. Default is true.
   # @option options [Boolean] :preserve_styles Whether to preserve any <tt>link rel=stylesheet</tt> and <tt>style</tt> elements.  Default is false.
-  # @option options [Boolean] :preserve_reset Whether to preserve styles associated with the MailChimp reset code. Default is true.
-  # @option options [Boolean] :with_html_string Whether the html param should be treated as a raw string. Default is false.
+  # @option options [Boolean] :preserve_link_tags Whether to preserve any <tt>link rel=stylesheet</tt> elements.  Default is false.
+  # @option options [Boolean] :preserve_style_tags Whether to preserve any <tt>style</tt> elements.  Default is false.
+  # @option options [Boolean] :preserve_reset Whether to preserve styles associated with the MailChimp reset code.
+  # @option options [Boolean] :with_html_string Whether the html param should be treated as a raw string.
   # @option options [Boolean] :verbose Whether to print errors and warnings to <tt>$stderr</tt>.  Default is false.
   # @option options [Boolean] :io_exceptions Throws exceptions on I/O errors.
   # @option options [Boolean] :include_link_tags Whether to include css from <tt>link rel=stylesheet</tt> tags.  Default is true.
@@ -178,7 +180,7 @@ class Premailer
   # @option options [String] :output_encoding Output encoding option for Nokogiri adapter. Should be set to "US-ASCII" to output HTML entities instead of Unicode characters.
   # @option options [Boolean] :create_shorthands Combine several properties into a shorthand one, e.g. font: style weight size. Default is true.
   # @option options [Boolean] :html_fragment Handle HTML fragment without any HTML content wrappers. Default is false.
-  # @option options [Boolean] :drop_unmergeable_css_rules Do not include unmergeable css rules in a <tt><style><tt> tag. Default is false.  
+  # @option options [Boolean] :drop_unmergeable_css_rules Do not include unmergeable css rules in a <tt><style><tt> tag. Default is false.
   def initialize(html, options = {})
     @options = {:warn_level => Warnings::SAFE,
                 :line_length => 65,
@@ -196,6 +198,8 @@ class Premailer
                 :with_html_string => false,
                 :css_string => nil,
                 :preserve_styles => false,
+                :preserve_link_tags => false,
+                :preserve_style_tags => false,
                 :preserve_reset => true,
                 :verbose => false,
                 :debug => false,
@@ -324,11 +328,13 @@ protected
             @css_parser.load_uri!(link_uri, {:only_media_types => [:screen, :handheld]})
           end
 
+          tag.remove unless @options[:preserve_styles] || @options[:preserve_link_tags]
+
         elsif tag.to_s.strip =~ /^\<style/i && @options[:include_style_tags]
           @css_parser.add_block!(tag.inner_html, :base_uri => @base_url, :base_dir => @base_dir, :only_media_types => [:screen, :handheld])
+          tag.remove unless @options[:preserve_styles] || @options[:preserve_style_tags]
         end
       end
-      tags.remove unless @options[:preserve_styles]
     end
   end
 
