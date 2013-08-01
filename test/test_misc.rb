@@ -173,7 +173,7 @@ END_HTML
 
     # no <style> block should exist
     assert_nil premailer.processed_doc.at('head style')
-  end  
+  end
 
   def test_unmergable_media_queries
     html = <<END_HTML
@@ -370,86 +370,40 @@ END_HTML
     end
   end
 
-  def test_strip_important_from_attributes
+  def test_removing_comments
     html = <<END_HTML
     <html>
     <head>
-      <style>td { background-color: #FF0000 !important; }</style>
     </head>
     <body>
-      <table><tr><td>red</td></tr></table>
+      <!-- This is a regular comment -->
+      <!--[if IE 6]>
+        This is a downlevel-hidden comment
+      <![endif]-->
+      <!--[if expression]><!-->
+        This is a downlevel-revealed comment
+      <!--<![endif]-->
     </body>
     </html>
 END_HTML
+    [:nokogiri].each do |adapter|
+      premailer = Premailer.new(html, :with_html_string => true, :remove_comments => true, :remove_conditional_comments => true, :adapter => adapter)
+      premailer.to_inline_css
+      assert !premailer.processed_doc.to_s.include?('regular')
+      assert !premailer.processed_doc.to_s.include?('downlevel-hidden') && !premailer.processed_doc.to_s.include?('<!--[if IE 6]>')
+      assert premailer.processed_doc.to_s.include?('downlevel-revealed') && !premailer.processed_doc.to_s.include?('<!--[if expression]>')
 
-    [:nokogiri, :nokogiri_fast, :nokogumbo].each do |adapter|
-      premailer = Premailer.new(html, :with_html_string => true, :adapter => adapter)
-      assert_match 'bgcolor="#FF0000"', premailer.to_inline_css
-    end
-  end
+      premailer = Premailer.new(html, :with_html_string => true, :remove_comments => true, :remove_conditional_comments => false, :adapter => adapter)
+      premailer.to_inline_css
+      assert !premailer.processed_doc.to_s.include?('regular')
+      assert premailer.processed_doc.to_s.include?('downlevel-hidden') && premailer.processed_doc.to_s.include?('<!--[if IE 6]>')
+      assert premailer.processed_doc.to_s.include?('downlevel-revealed') && premailer.processed_doc.to_s.include?('<!--[if expression]>')
 
-  def test_scripts_with_nokogiri
-    html = <<END_HTML
-    <html>
-    <body>
-    <script type="application/ld+json">
-    {
-      "@context": "http://schema.org",
-      "@type": "Person",
-      "name": "John Doe",
-      "jobTitle": "Graduate research assistant",
-      "affiliation": "University of Dreams",
-      "additionalName": "Johnny",
-      "url": "http://www.example.com",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "1234 Peach Drive",
-        "addressLocality": "Wonderland",
-        "addressRegion": "Georgia"
-      }
-    }
-    </script
-    </body>
-    </html>
-END_HTML
-
-    premailer = Premailer.new(html, :with_html_string => true, :remove_scripts => false, :adapter => :nokogiri)
-    premailer.to_inline_css
-
-    assert !premailer.processed_doc.css('script[type="application/ld+json"]').first.children.first.cdata?
-  end
-
-  def test_style_without_data_in_content
-    html = <<END_HTML
-    <html>
-    <head>
-      <style>#logo {content:url(good.png)};}</style>
-    </head>
-    <body>
-      <image id="logo"/>
-    </body>
-    </html>
-END_HTML
-    [:nokogiri, :nokogiri_fast, :nokogumbo].each do |adapter|
-      premailer = Premailer.new(html, :with_html_string => true, :adapter => adapter)
-      assert_match 'content: url(good.png)', premailer.to_inline_css
-    end
-  end
-
-  def test_style_with_data_in_content
-    html = <<END_HTML
-    <html>
-    <head>
-      <style>#logo {content: url(data:image/png;base64,LOTSOFSTUFF)};}</style>
-    </head>
-    <body>
-      <image id="logo"/>
-    </body>
-    </html>
-END_HTML
-    [:nokogiri, :nokogiri_fast, :nokogumbo].each do |adapter|
-      premailer = Premailer.new(html, :with_html_string => true, :adapter => adapter)
-      assert_match /content:\s*url\(data:image\/png;base64,LOTSOFSTUFF\)/, premailer.to_inline_css
+      premailer = Premailer.new(html, :with_html_string => true, :remove_comments => false, :remove_conditional_comments => false, :adapter => adapter)
+      premailer.to_inline_css
+      assert premailer.processed_doc.to_s.include?('regular')
+      assert premailer.processed_doc.to_s.include?('downlevel-hidden') && premailer.processed_doc.to_s.include?('<!--[if IE 6]>')
+      assert premailer.processed_doc.to_s.include?('downlevel-revealed') && premailer.processed_doc.to_s.include?('<!--[if expression]>')
     end
   end
 

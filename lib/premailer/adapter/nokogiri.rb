@@ -112,7 +112,7 @@ class Premailer
         if @options[:remove_classes] or @options[:remove_comments]
           doc.traverse do |el|
             if el.comment? and @options[:remove_comments]
-              el.remove
+              el.remove unless !@options[:remove_conditional_comments] && Premailer.conditional_comment?(el.text)
             elsif el.element?
               el.remove_attribute('class') if @options[:remove_classes]
             end
